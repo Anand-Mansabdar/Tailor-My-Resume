@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+langchain
+langchain-groq
+pydantic
+pypdf
+pdfplumber
+python-docx
+python-multipart
+python-dotenv
+pydantic-settings
