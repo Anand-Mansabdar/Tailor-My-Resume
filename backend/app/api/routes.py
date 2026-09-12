@@ -1,5 +1,6 @@
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from app.services.document_parser import extract_text_from_file
+from app.services.resume_tailor import ResumeTailor
 
 router = APIRouter()
 
@@ -149,4 +150,92 @@ async def parse_input(
       "text": job_description.strip(),
       "character_count": len(job_description.strip()),
     }
+  }
+  
+
+@router.post("/tailor-resume")
+async def tailor_resume(
+  job_description: str = Form(...),
+  resume_text: str | None = Form(default=None),
+  resume_file: UploadFile | None = File(default=None)
+):
+  """
+    Extract the resume and use LangChain + Groq to tailor it
+    against the supplied job description.
+  """
+  
+  if not job_description.strip():
+    raise HTTPException(
+      status_code=400,
+      detail="Job description cannot be empty.",
+    )
+  
+  if not resume_text and not resume_file:
+    raise HTTPException(
+      status_code=400,
+      detail="Provide either resume text or a resume file."
+    )
+  
+  # ---------------------------------------
+  # Extract resume
+  # ---------------------------------------
+    
+  if resume_text and resume_text.strip():
+    extracted_resume = resume_text.strip()
+    
+  else:
+    try:
+      file_bytes = await resume_file.read()
+      
+      if not file_bytes:
+        raise HTTPException(
+          status_code=400,
+          detail="Uploaded resume file is empty."
+        )
+      
+      extracted_resume = extract_text_from_file(
+        resume_file.filename or "",
+        file_bytes,
+      )
+    except HTTPException:
+      raise
+    
+    except ValueError as exc:
+      raise HTTPException(
+        status_code=400,
+        detail=str(exc)
+      ) from exc
+    
+    except Exception as exc:
+      raise HTTPException(
+        status_code=400,
+        detail="Failed to extract resume text."
+      ) from exc
+    
+  # -----------------------------------------
+  # Call LLM
+  # -----------------------------------------
+  try:
+    tailor = ResumeTailor()
+    
+    tailored_resume = await tailor.tailor_resume(
+      resume_text=extracted_resume,
+      job_description=job_description.strip()
+    )
+    
+  except ValueError as exc:
+    raise HTTPException(
+      status_code=500,
+      detail=str(exc),
+    ) from exc
+  
+  except Exception as exc:
+    raise HTTPException(
+      status_code=500,
+      detail=f"Resume tailoring failed: {str(exc)}"
+    ) from exc
+  
+  return {
+    "success": True,
+    "resume": tailored_resume.model_dump(),
   }
