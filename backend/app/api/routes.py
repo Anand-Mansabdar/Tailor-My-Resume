@@ -239,14 +239,24 @@ async def tailor_resume(
   try:
     latex_code= generate_latex(tailored_resume)
     
+    return {
+      "success": True,
+      "resume": tailored_resume.model_dump(),
+      "latex": latex_code,
+      "overleaf": {
+        "action": "https://www.overleaf.com/docs",
+        "method": "POST",
+        "field": "encoded_snip",
+      }
+    }
+  
+  except HTTPException:
+    raise
+    
   except Exception as exc:
     raise HTTPException(
       status_code=500,
       detail=f"Latex code generation failed: {str(exc)}"
     ) from exc
   
-  return {
-    "success": True,
-    "resume": tailored_resume.model_dump(),
-    "latex": latex_code
-  }
+  
