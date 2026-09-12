@@ -1,6 +1,7 @@
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from app.services.document_parser import extract_text_from_file
 from app.services.resume_tailor import ResumeTailor
+from app.services.latex_generator import generate_latex
 
 router = APIRouter()
 
@@ -234,8 +235,18 @@ async def tailor_resume(
       status_code=500,
       detail=f"Resume tailoring failed: {str(exc)}"
     ) from exc
+    
+  try:
+    latex_code= generate_latex(tailored_resume)
+    
+  except Exception as exc:
+    raise HTTPException(
+      status_code=500,
+      detail=f"Latex code generation failed: {str(exc)}"
+    ) from exc
   
   return {
     "success": True,
     "resume": tailored_resume.model_dump(),
+    "latex": latex_code
   }
