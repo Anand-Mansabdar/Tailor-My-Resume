@@ -1,7 +1,12 @@
+import logging
+
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from app.services.document_parser import extract_text_from_file
 from app.services.resume_tailor import ResumeTailor
 from app.services.latex_generator import generate_latex
+from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -10,6 +15,8 @@ async def health_check():
   return {
     "status": "ok",
     "message": "AI Resume Tailor backend is running",
+    "app": settings.app_name,
+    "version": settings.app_version
   }
   
 
@@ -202,12 +209,14 @@ async def tailor_resume(
       raise
     
     except ValueError as exc:
+      logger.exception("Resume tailoring failed")
       raise HTTPException(
-        status_code=400,
-        detail=str(exc)
+        status_code=500,
+        detail="Resume tailoring failed. Please try again."
       ) from exc
     
     except Exception as exc:
+      logger.exception("Resume tailoring failed")
       raise HTTPException(
         status_code=400,
         detail="Failed to extract resume text."
@@ -225,12 +234,14 @@ async def tailor_resume(
     )
     
   except ValueError as exc:
+    logger.exception("Resume tailoring failed")
     raise HTTPException(
       status_code=500,
       detail=str(exc),
     ) from exc
   
   except Exception as exc:
+    logger.exception("Resume tailoring failed")
     raise HTTPException(
       status_code=500,
       detail=f"Resume tailoring failed: {str(exc)}"
@@ -251,9 +262,11 @@ async def tailor_resume(
     }
   
   except HTTPException:
+    logger.exception("Resume tailoring failed")
     raise
     
   except Exception as exc:
+    logger.exception("Resume tailoring failed")
     raise HTTPException(
       status_code=500,
       detail=f"Latex code generation failed: {str(exc)}"

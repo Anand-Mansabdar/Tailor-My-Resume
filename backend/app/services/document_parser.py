@@ -3,6 +3,7 @@
 import pdfplumber
 from io import BytesIO
 from docx import Document
+from pathlib import Path
 
 ALLOWED_EXTENSIONS = {
   ".pdf", 
@@ -68,6 +69,9 @@ def extract_text_from_file(
   """
     Determine the file type from its extension and extract text.
   """
+  if not filename:
+    raise ValueError("Filename is required.")
+  
   extension = "." + filename.lower().split(".")[-1]
   
   if extension not in ALLOWED_EXTENSIONS:
@@ -75,9 +79,12 @@ def extract_text_from_file(
       f"Unsupported file type: {extension}. "
       f"Allowed types: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
     )
+    
+  if not file_bytes:
+    raise ValueError("Uploaded file is empty.")
   
   if extension == ".txt":
-    text = extract_text_from_file(file_bytes=file_bytes)
+    text = extract_text_from_txt(file_bytes=file_bytes)
   
   elif extension == ".pdf":
     text = extract_text_from_pdf(file_bytes=file_bytes)

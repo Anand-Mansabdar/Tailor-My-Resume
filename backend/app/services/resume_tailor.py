@@ -1,4 +1,5 @@
 from langchain_groq import ChatGroq
+from langchain_core.exceptions import OutputParserException
 
 from app.config import settings
 from app.models.resume import TailoredResume
@@ -45,14 +46,18 @@ class ResumeTailor:
       Return the complete tailored resume using the required structured schema.
     """
     
-    result = await self.sturctured_llm.ainvoke(
-      [
+    try:
+      result = await self.sturctured_llm.ainvoke([
         ("system", SYSTEM_PROMPT),
         ("human", user_prompt)
-      ]
-    )
+      ])
+      
+      return result
+    except OutputParserException as exc:
+      raise RuntimeError("The AI returned an invalid resume structure.") from exc
     
-    return result
+    except Exception as exc:
+      raise RuntimeError("The AI service could not process the resume.") from exc
     
     
     
