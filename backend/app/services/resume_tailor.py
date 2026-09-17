@@ -5,6 +5,10 @@ from app.config import settings
 from app.models.resume import TailoredResume
 from app.prompts.resume_prompt import SYSTEM_PROMPT
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class ResumeTailor:
   def __init__(self):
@@ -57,6 +61,8 @@ class ResumeTailor:
       raise RuntimeError("The AI returned an invalid resume structure.") from exc
     
     except Exception as exc:
+      logger.exception("LLM resume tailoring failed: %s", exc)
+      
       raise RuntimeError("The AI service could not process the resume.") from exc
     
     

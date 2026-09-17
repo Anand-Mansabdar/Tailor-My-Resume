@@ -253,12 +253,21 @@ async def tailor_resume(
     }
   except HTTPException:
     raise
+  
   except ValueError as exc:
     raise HTTPException(
       status_code=400,
       detail=str(exc)
     )
+    
+  except RuntimeError as exc:
+    raise HTTPException(
+      status_code=502,
+      detail="The AI service could not process the resume. Please try again.",
+    )
+    
   except Exception:
+    logger.exception("Unexpected error in /tailor-resume API endpoint.")
     raise HTTPException(
       status_code=500,
       detail="Resume tailoring failed. Please try again."
