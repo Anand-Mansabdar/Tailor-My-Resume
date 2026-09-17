@@ -163,7 +163,7 @@ async def parse_input(
 
 @router.post("/tailor-resume")
 async def tailor_resume(
-  job_description: str = Form(...),
+  job_description: str | None = Form(...),
   resume_text: str | None = Form(default=None),
   resume_file: UploadFile | None = File(default=None)
 ):
@@ -171,105 +171,96 @@ async def tailor_resume(
     Extract the resume and use LangChain + Groq to tailor it
     against the supplied job description.
   """
-  
-  if not job_description.strip():
-    raise HTTPException(
-      status_code=400,
-      detail="Job description cannot be empty.",
-    )
-  
-  if not resume_text and not resume_file:
-    raise HTTPException(
-      status_code=400,
-      detail="Provide either resume text or a resume file."
-    )
-  
-  # ---------------------------------------
-  # Extract resume
-  # ---------------------------------------
-    
-  if resume_text and resume_text.strip():
-    extracted_resume = resume_text.strip()
-    
-  else:
-    try:
-      file_bytes = await resume_file.read()
-      
-      if not file_bytes:
-        raise HTTPException(
-          status_code=400,
-          detail="Uploaded resume file is empty."
-        )
-      
-      extracted_resume = extract_text_from_file(
-        resume_file.filename or "",
-        file_bytes,
-      )
-    except HTTPException:
-      raise
-    
-    except ValueError as exc:
-      logger.exception("Resume tailoring failed")
-      raise HTTPException(
-        status_code=500,
-        detail="Resume tailoring failed. Please try again."
-      ) from exc
-    
-    except Exception as exc:
-      logger.exception("Resume tailoring failed")
+  try:
+    if not job_description.strip():
       raise HTTPException(
         status_code=400,
-        detail="Failed to extract resume text."
-      ) from exc
+        detail="Job description cannot be empty.",
+      )
+      
+    if len(job_description) > settings.max_job_description_characters:
+      raise HTTPException(
+        status_code=400,
+        detail=(f"Job desciption is too large.\nMaximum allowed length is {settings.max_job_description_characters}")
+      )
+      
+    if not resume_file and not resume_text:
+      raise HTTPException(
+        status_code=400,
+        detail="Resume file or text cannot be empty."
+      )
+      
+      
+    # ---------------------------------------
+    # Extract resume
+    # ---------------------------------------
     
-  # -----------------------------------------
-  # Call LLM
-  # -----------------------------------------
-  try:
-    tailor = ResumeTailor()
+    if resume_file:
+      file_bytes = await resume_file.read()
+      
+      max_file_size = settings.max_mb_file_limit*1024*1024
+      
+      if len(file_bytes) > max_file_size:
+        raise HTTPException(
+          status_code=400,
+          detail=f"File is too large.\nMaximum allowed file size is {settings.max_mb_file_limit}"
+        )
+        
+      resume_content = extract_text_from_file(
+        filename=resume_file.filename or "",
+        file_bytes=file_bytes
+      )
+    elif resume_text:
+      resume_content = resume_text
+    else:
+      raise HTTPException(
+        status_code=400,
+        detail="Provide either resume_text or resume_file."
+      )
     
-    tailored_resume = await tailor.tailor_resume(
-      resume_text=extracted_resume,
-      job_description=job_description.strip()
+    resume_content = resume_content.strip()
+    
+    if not resume_content:
+      raise HTTPException(
+        status_code=400,
+        detail="Resume content is required."
+      )
+    
+    if len(resume_content) > settings.max_resume_characters:
+      raise HTTPException(
+        status_code=400,
+        detail=f"Resume is too large. Maximum allowed length is {settings.max_resume_characters}"
+      )
+    
+    tailor_service = ResumeTailor()
+    
+    tailored_resume = await tailor_service.tailor_resume(
+      resume_text=resume_content,
+      job_description=job_description,
     )
     
-  except ValueError as exc:
-    logger.exception("Resume tailoring failed")
-    raise HTTPException(
-      status_code=500,
-      detail=str(exc),
-    ) from exc
-  
-  except Exception as exc:
-    logger.exception("Resume tailoring failed")
-    raise HTTPException(
-      status_code=500,
-      detail=f"Resume tailoring failed: {str(exc)}"
-    ) from exc
-    
-  try:
-    latex_code= generate_latex(tailored_resume)
+    latex = generate_latex(tailored_resume)
     
     return {
       "success": True,
       "resume": tailored_resume.model_dump(),
-      "latex": latex_code,
+      "latex": latex,
       "overleaf": {
         "action": "https://www.overleaf.com/docs",
         "method": "POST",
         "field": "encoded_snip",
-      }
+      },
     }
-  
   except HTTPException:
-    logger.exception("Resume tailoring failed")
     raise
-    
-  except Exception as exc:
-    logger.exception("Resume tailoring failed")
+  except ValueError as exc:
+    raise HTTPException(
+      status_code=400,
+      detail=str(exc)
+    )
+  except Exception:
     raise HTTPException(
       status_code=500,
-      detail=f"Latex code generation failed: {str(exc)}"
-    ) from exc
-  
+      detail="Resume tailoring failed. Please try again."
+    )
   
