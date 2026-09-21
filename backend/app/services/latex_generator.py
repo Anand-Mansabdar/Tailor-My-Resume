@@ -36,6 +36,21 @@ def escape_latex(text: str) -> str:
         LATEX_SPECIAL_CHARS.get(char, char) for char in text
     )
 
+def normalize_url(url: str) -> str:
+    """
+    Ensure URLs have a valid scheme for LaTeX hyperlinks.
+    """
+
+    if not url:
+        return ""
+
+    url = url.strip()
+
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+
+    return url
+
 
 LATEX_URL_SPECIAL_CHARS = {
     "\\": r"\textbackslash{}",
@@ -44,59 +59,99 @@ LATEX_URL_SPECIAL_CHARS = {
     "{": r"\{",
     "}": r"\}",
     "_": r"\_",
-    "~": r"\%7E",
+    "~": r"%7E",
 }
 
-
 def escape_latex_url(url: str) -> str:
-    """
-    Escape a URL for use inside \\href{}.
-    """
     if not url:
         return ""
 
     return "".join(
-        LATEX_URL_SPECIAL_CHARS.get(char, char) for char in url
+        LATEX_URL_SPECIAL_CHARS.get(char, char)
+        for char in url
     )
-
 
 def build_contact_line(resume: TailoredResume) -> str:
     """
     Build the contact line from available information.
     """
+
     header = resume.header
     contact_items = []
 
+    # Email
     if header.email:
         email = escape_latex(header.email)
-        email_url = escape_latex_url(header.email)
 
-        contact_items.append(
-            rf"\href{{mailto:{email_url}}}{{{email}}}"
+        email_url = escape_latex_url(
+            f"mailto:{header.email.strip()}"
         )
 
+        contact_items.append(
+            rf"\href{{{email_url}}}{{{email}}}"
+        )
+
+    # Phone
     if header.phone:
-        contact_items.append(
-            escape_latex(header.phone)
+        phone = escape_latex(header.phone)
+
+        phone_url = (
+            header.phone
+            .strip()
+            .replace(" ", "")
+            .replace("-", "")
+            .replace("(", "")
+            .replace(")", "")
         )
 
+        contact_items.append(
+            rf"\href{{tel:{phone_url}}}{{{phone}}}"
+        )
+
+    # Location
     if header.location:
         contact_items.append(
             escape_latex(header.location)
         )
 
+    # LinkedIn
     if header.linkedin:
-        url = escape_latex_url(header.linkedin)
-        contact_items.append(rf"\href{{{url}}}{{LinkedIn}}")
+        linkedin_url = normalize_url(
+            header.linkedin
+        )
 
+        linkedin_url = escape_latex_url(
+            linkedin_url
+        )
+
+        contact_items.append(
+            rf"\href{{{linkedin_url}}}{{LinkedIn}}"
+        )
+
+    # GitHub
     if header.github:
-        github_url = escape_latex_url(header.github)
+        github_url = normalize_url(
+            header.github
+        )
+
+        github_url = escape_latex_url(
+            github_url
+        )
+
         contact_items.append(
             rf"\href{{{github_url}}}{{GitHub}}"
         )
 
+    # Portfolio
     if header.portfolio:
-        portfolio_url = escape_latex_url(header.portfolio)
+        portfolio_url = normalize_url(
+            header.portfolio
+        )
+
+        portfolio_url = escape_latex_url(
+            portfolio_url
+        )
+
         contact_items.append(
             rf"\href{{{portfolio_url}}}{{Portfolio}}"
         )
@@ -132,12 +187,14 @@ def build_experience_item(item: ExperienceItem) -> str:
     """
     Generate one experience entry.
     """
+
     company = escape_latex(item.company)
     role = escape_latex(item.role)
     location = escape_latex(item.location)
     start_date = escape_latex(item.start_date)
     end_date = escape_latex(item.end_date)
 
+    # Build date range
     date_range = ""
 
     if start_date and end_date:
@@ -147,6 +204,7 @@ def build_experience_item(item: ExperienceItem) -> str:
     elif end_date:
         date_range = end_date
 
+    # Build right-side content
     location_date_parts = []
 
     if location:
@@ -157,16 +215,19 @@ def build_experience_item(item: ExperienceItem) -> str:
 
     right_side = " $|$ ".join(location_date_parts)
 
+    # First line
     first_line = "\\textbf{" + company + "}"
+
     if right_side:
         first_line += " \\hfill " + right_side
 
     latex = [
         first_line + " \\\\",
         "\\textit{" + role + "}",
-        "\\begin{itemize}"
+        "\\begin{itemize}",
     ]
 
+    # Bullets
     for bullet in item.bullets:
         latex.append(
             "\\item " + escape_latex(bullet)
@@ -196,8 +257,9 @@ def build_experience_section(
 
 def build_project_item(item: ProjectItem) -> str:
     """
-    Generate one project entry.
+        Generate one project entry.
     """
+
     name = escape_latex(item.name)
 
     technologies = ""
@@ -226,7 +288,6 @@ def build_project_item(item: ProjectItem) -> str:
 
     return "\n".join(latex)
 
-
 def build_projects_section(
     projects: list[ProjectItem],
 ) -> str:
@@ -246,13 +307,24 @@ def build_projects_section(
 
 
 def build_education_item(item: EducationItem) -> str:
+    """
+    Generate one education entry.
+
+    Layout:
+    Institution                                  Location | Duration
+    Degree                                                     CGPA
+    Additional details...
+    """
+
     institution = escape_latex(item.institution)
     degree = escape_latex(item.degree)
     location = escape_latex(item.location)
     start_date = escape_latex(item.start_date)
     end_date = escape_latex(item.end_date)
 
-    date_range = ""
+    # ---------------------------------------------------------
+    # Build date range
+    # ---------------------------------------------------------
 
     if start_date and end_date:
         date_range = f"{start_date} -- {end_date}"
@@ -260,6 +332,12 @@ def build_education_item(item: EducationItem) -> str:
         date_range = start_date
     elif end_date:
         date_range = end_date
+    else:
+        date_range = ""
+
+    # ---------------------------------------------------------
+    # Build right side of first row
+    # ---------------------------------------------------------
 
     right_side_parts = []
 
@@ -269,22 +347,58 @@ def build_education_item(item: EducationItem) -> str:
     if date_range:
         right_side_parts.append(date_range)
 
-    right_side = " $|$ ".join(right_side_parts)
+    right_side = " | ".join(right_side_parts)
 
-    first_line = "\\textbf{" + institution + "}"
-    if right_side:
-        first_line += " \\hfill " + right_side
+    # ---------------------------------------------------------
+    # Separate CGPA from other details
+    # ---------------------------------------------------------
+
+    cgpa = ""
+    other_details = []
+
+    for detail in item.details:
+        if detail.strip().lower().startswith("cgpa"):
+            cgpa = escape_latex(detail)
+        else:
+            other_details.append(detail)
+
+    # ---------------------------------------------------------
+    # Build education entry
+    # ---------------------------------------------------------
 
     latex = [
-        first_line + " \\\\",
+        "\\begin{tabular*}{\\textwidth}"
+        "{@{\\extracolsep{\\fill}}lr}",
+
+        # Institution + location/date
+        "\\textbf{" + institution + "}"
+        + " & "
+        + right_side
+        + " \\\\",
+
+        # Degree + CGPA
         "\\textit{" + degree + "}"
+        + " & "
+        + cgpa
+        + " \\\\",
+
+        "\\end{tabular*}",
     ]
 
-    if item.details:
-        latex.append("\\begin{itemize}")
-        for detail in item.details:
-            latex.append("\\item " + escape_latex(detail))
-        latex.append("\\end{itemize}")
+    # ---------------------------------------------------------
+    # Additional details
+    # ---------------------------------------------------------
+
+    if other_details:
+        latex.append("\\vspace{2pt}")
+
+        for detail in other_details:
+            latex.append(
+                "\\noindent\\hspace{4pt}"
+                "\\textbullet\\ "
+                + escape_latex(detail)
+                + " \\\\"
+            )
 
     return "\n".join(latex)
 
@@ -299,7 +413,7 @@ def build_education_section(education: list[EducationItem]) -> str:
 
     return (
         "\\section{Education}\n"
-        + "\n\\vspace{3pt}\n".join(entries)
+        + "\n\\par\\vspace{4pt}\n".join(entries)
         + "\n"
     )
 
