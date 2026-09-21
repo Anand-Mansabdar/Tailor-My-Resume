@@ -1,14 +1,20 @@
 import logging
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, Depends
 from app.services.document_parser import extract_text_from_file
 from app.services.resume_tailor import ResumeTailor
 from app.services.latex_generator import generate_latex
 from app.config import settings
+from app.api.auth_routes import router as auth_router
+from app.middleware.auth_middleware import get_current_user_from_cookie
+from app.models.user import UserResponse
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Include authentication routes
+router.include_router(auth_router)
 
 @router.get("/health")
 async def health_check():
@@ -165,13 +171,18 @@ async def parse_input(
 async def tailor_resume(
   job_description: str | None = Form(...),
   resume_text: str | None = Form(default=None),
-  resume_file: UploadFile | None = File(default=None)
+  resume_file: UploadFile | None = File(default=None),
+  current_user: UserResponse = Depends(get_current_user_from_cookie)
 ):
   """
     Extract the resume and use LangChain + Groq to tailor it
     against the supplied job description.
+    
+    **Authentication Required**: User must be logged in to access this endpoint.
   """
   try:
+    logger.info(f"User {current_user.email} is tailoring a resume")
+    
     if not job_description.strip():
       raise HTTPException(
         status_code=400,

@@ -9,3 +9,7 @@ python-docx
 python-multipart
 python-dotenv
 pydantic-settings
+pymongo
+bcrypt
+PyJWT
+email-validator

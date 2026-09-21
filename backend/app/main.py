@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 
 from app.api.routes import router
 from app.config import settings
+from app.database import connect_to_mongo, close_mongo_connection
 
 import logging
 
@@ -11,10 +13,24 @@ logging.basicConfig(
   format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
+logger = logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+  """Application lifespan events"""
+  # Startup
+  logger.info("Starting up application...")
+  connect_to_mongo()
+  yield
+  # Shutdown
+  logger.info("Shutting down application...")
+  close_mongo_connection()
+
 app = FastAPI(
   title=settings.app_name,
   version=settings.app_version,
-  description="AI powered resume tailoring backend"
+  description="AI powered resume tailoring backend",
+  lifespan=lifespan
 )
 
 app.add_middleware(

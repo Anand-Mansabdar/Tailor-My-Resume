@@ -17,6 +17,15 @@ class Settings(BaseSettings):
   max_resume_characters: int = 30000
   max_job_description_characters:int = 15000
   
+  # MongoDB settings
+  mongodb_url: str = "mongodb+srv://anandmansabdarstudy_db_user:8YRMvPfWxv00SgW3@cluster0.8wbnq4s.mongodb.net/"
+  mongodb_db_name: str = "tailor_resume_db"
+  
+  # JWT settings
+  jwt_secret_key: str = ""
+  jwt_algorithm: str = "HS256"
+  jwt_access_token_expire_minutes: int = 60 * 24 * 7  # 7 days
+  
   model_config = SettingsConfigDict(
     env_file=".env",
     env_file_encoding="utf-8",

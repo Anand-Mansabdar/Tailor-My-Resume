@@ -1,6 +1,13 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(/\/$/, "");
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api"
+).replace(/\/$/, "");
 
-export async function tailorResume({ resumeFile, resumeText, jobDescription, signal }) {
+export async function tailorResume({
+  resumeFile,
+  resumeText,
+  jobDescription,
+  signal,
+}) {
   const formData = new FormData();
   formData.append("job_description", jobDescription);
 
@@ -12,9 +19,10 @@ export async function tailorResume({ resumeFile, resumeText, jobDescription, sig
 
   let response;
   try {
-    response = await fetch(`${API_BASE_URL}/api/tailor-resume`, {
+    response = await fetch(`${API_BASE_URL}/tailor-resume`, {
       method: "POST",
       body: formData,
+      credentials: "include", // Important: Include cookies for authentication
       signal,
     });
   } catch (error) {
@@ -30,7 +38,9 @@ export async function tailorResume({ resumeFile, resumeText, jobDescription, sig
   }
 
   if (!response.ok) {
-    const error = new Error(payload?.detail || payload?.message || "REQUEST_FAILED");
+    const error = new Error(
+      payload?.detail || payload?.message || "REQUEST_FAILED",
+    );
     error.status = response.status;
     throw error;
   }
