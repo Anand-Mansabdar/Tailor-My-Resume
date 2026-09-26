@@ -36,8 +36,8 @@ async def register(
             key="access_token",
             value=token_response.access_token,
             httponly=True,
-            secure=False,  # Set to True in production with HTTPS
-            samesite="lax",
+            secure=True,  # Set to True in production with HTTPS
+            samesite="none",
             max_age=settings.jwt_access_token_expire_minutes * 60
         )
         
@@ -73,8 +73,8 @@ async def login(
             key="access_token",
             value=token_response.access_token,
             httponly=True,
-            secure=False,  # Set to True in production with HTTPS
-            samesite="lax",
+            secure=True,  # Set to True in production with HTTPS
+            samesite="none",
             max_age=settings.jwt_access_token_expire_minutes * 60
         )
         
@@ -95,7 +95,7 @@ async def logout(response: Response):
     """
     Logout user by clearing the authentication cookie
     """
-    response.delete_cookie(key="access_token", samesite="lax")
+    response.delete_cookie(key="access_token", samesite="none", secure=True)
     logger.info("User logged out successfully")
     return {"message": "Logged out successfully"}
 
