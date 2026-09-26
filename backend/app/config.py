@@ -6,7 +6,7 @@ load_dotenv()
 
 class Settings(BaseSettings):
   groq_api_key: str = ""
-  frontend_url: str = "http://localhost:5173"
+  frontend_url: str = "https://tailor-my-resume-frontend.onrender.com"
   
   app_name: str = "Tailor My Resume"
   app_version: str = "0.1.0"
